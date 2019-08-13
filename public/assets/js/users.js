@@ -1,3 +1,4 @@
+/*
 // 主要是用于操作用户的 
 var userArr = new Array();
 // 将用户列表展示出来 
@@ -140,5 +141,161 @@ $('#userEdit').on('click',function(){
         }
     });
 });
+*/
 
 
+
+
+
+
+//添加功能
+$('#userForm').on('submit',function(){
+    var formData = $(this).serialize();
+    console.log(formData)
+    $.ajax({
+        type:'post',
+        url:'/users',
+        data:formData,
+        success:function(){
+            location.reload();
+        },
+        error:function(){
+            alert('添加失败')
+        }
+    })
+
+
+    return false;
+})
+
+
+//当用户选择文件添加头像时
+
+
+
+$('#modifyBox').on('change','#avatar',function(){
+   //console.log(this.files[0])
+   var formData = new FormData();
+   //第一个参数是属性名称（当图片上传之后服务器会返回一个对象，对象里面存储着图片的地址，这个地址对应的属性名称就是此处写的第一个参数）
+   formData.append('avatar', this.files[0]);
+   $.ajax({
+       type:'post',
+       url:'/upload',
+       data:formData,
+       //告诉$.ajax方法不要解析请求参数(不要解析formData对应的值，ajax默认会将请求参数修改为k=v的形式，二此处头像上传需要的是二进制文件)
+       processData:false,
+       //告诉$.ajax方法不要设置请求参数的类型（formData中已经设置过请求参数的类型）
+       contentType:false,
+       success:function(res){
+           // console.log(res)   //输出的是图片地址
+           $('#preview').attr('src',res[0].avatar)
+           $('#hiddenAvatar').val(res[0].avatar)
+       }
+
+   })
+})
+
+//用户列表展示
+//1.先拿到用户列表数据2.使用模板引擎实现数据和模板的拼接
+$.ajax({
+    url:'/users',
+    type:'get',
+    success:function(res){
+       // console.log(res)  //用户列表信息
+        //拼接,tem的第二个参数要是对象形式
+        var html = template('userTpl',{list:res});
+        //console.log(html)
+        $('#userBox').html(html);
+
+    }
+})
+
+
+//通过事件委托的方式为编辑按钮添加点击事件
+$('#userBox').on('click','.edit',function(){
+    let id = $(this).attr('data-id');
+    $.ajax({
+        url:'/users/'+id,
+        type:'put',
+        success:function(res){
+            //console.log(res)
+            var html = template('modifyTpl',res);
+            //console.log(html)
+            $('#modifyBox').html(html)
+        }
+    })
+})
+
+//修改后的用户信息上传
+$('#modifyBox').on('submit','#modifyForm',function(){
+    let formData = $(this).serialize();
+   console.log('111'+formData)
+    var id=$(this).attr('data-id');
+  
+    $.ajax({
+        url:'/users/'+id,
+        type:'put',
+        data:formData,
+        success:function(res){
+            location.reload()
+        }
+    })
+     return false;
+ })
+
+
+ //实现用户信息删除功能
+ $('#userBox').on('click','.user-del',function(){
+     //alert('1')
+    if(confirm('您真的要删除嘛')){
+         //由文档得知删除用户功能需要获得用户的Id，用户id在编辑按钮上绑定的有
+    let id = $(this).parent().attr('data-id');
+    //console.log(id)
+    $.ajax({
+       url:'/users/'+id,
+       type:'delete',
+       success:function(res){
+        console.log(res)
+        location.reload();
+       } 
+    })
+    }
+
+ })
+
+ //实现批量删除功能
+
+ //点击全选按钮时选中所有
+ $('#selectAll').on('change',function(){
+    // alert('1')
+    var status = $(this).prop('checked')
+    //alert(status)
+
+    //当全选按钮被选中和隐藏的时候，批量删除按钮分属的状态
+    if(status){
+        $('#deleteMany').show();
+    }else{
+        $('#deleteMany').hide();
+    }
+    //获取所有用户的状态与全选按钮同步
+    $('#userBox').find('input').prop('checked',status);
+ })
+
+ //当用户前面的复选框发生改变的时候控制全选按钮的选中状态
+ $('#userBox').on('change','.userStatus',function(){
+     //获取所有用户在所有用户里过滤出选中的用户
+     //判断选中用户的数量是否等于全部用户
+     var inputs = $('#userBox').find('input');
+     if(inputs.length == inputs.filter(':checked').length){
+         $('#selectAll').prop('checked',true);
+     }else{
+        $('#selectAll').prop('checked',false);
+     }
+
+     //如果选中的复选框数量大于0，显示批量删除
+     if(inputs.filter(':checked').length > 0 ){
+         $('#deleteMany').show();
+     }else{
+         $('#deleteMany').hide();
+     }
+ })
